@@ -7,12 +7,13 @@ func main() {
 	d, e := blink1.OpenNextDevice()
 
 	if e != nil {
-		fmt.Printf("err: %s", e.Error())
+		fmt.Printf("err: %s\n", e.Error())
 		return
 	}
 
 	defer d.Close()
 
+	fmt.Printf("starting, (green) (red) (blue)\n")
 	for {
 		var in string
 
@@ -40,5 +41,6 @@ func main() {
 
 	}
 
+	fmt.Printf("fin.\n")
 	d.SetState(blink1.State{})
 }
