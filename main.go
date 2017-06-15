@@ -37,8 +37,9 @@ func main() {
 			s = blink1.State{Green: 255}
 		}
 
-		d.SetState(s)
-
+		if e := d.SetState(s); e != nil {
+			fmt.Printf("error setting state: %s\n", e.Error())
+		}
 	}
 
 	fmt.Printf("fin.\n")
