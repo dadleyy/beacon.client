@@ -1,47 +1,73 @@
 package main
 
 import "fmt"
-import "github.com/hink/go-blink1"
+import "log"
+import "golang.org/x/net/websocket"
 
 func main() {
-	d, e := blink1.OpenNextDevice()
+	origin, url := "http://0.0.0.0", "ws://0.0.0.0:12345/echo"
 
-	if e != nil {
-		fmt.Printf("err: %s\n", e.Error())
+	log.Println("Dialing connection...")
+	ws, err := websocket.Dial(url, "", origin)
+
+	if err != nil {
+		log.Fatal(err)
 		return
 	}
 
-	defer d.Close()
+	sender, receiver := make(chan string), make(chan string)
 
-	fmt.Printf("starting, (green) (red) (blue)\n")
+	go func() {
+		for {
+			var s string
+
+			if _, e := fmt.Scanln(&s); e != nil {
+				break
+			}
+
+			sender <- s
+		}
+
+		sender <- ""
+	}()
+
+	go func() {
+		for {
+			msg := make([]byte, 512)
+
+			if _, e := ws.Read(msg); e != nil {
+				break
+			}
+
+			receiver <- string(msg)
+		}
+
+		receiver <- ""
+	}()
+
 	for {
-		var in string
+		log.Println("listing for input or response")
 
-		if _, e := fmt.Scanln(&in); e != nil {
-			fmt.Printf("err: %s", e.Error())
-			return
-		}
+		select {
+		case input := <-sender:
+			log.Printf("input[%s]\n", input)
 
-		if in == "exit" {
-			fmt.Printf("exiting...\n")
-			break
-		}
+			if input == "" {
+				log.Println("exited via input")
+				break
+			}
 
-		var s blink1.State
-		switch in {
-		case "red":
-			s = blink1.State{Red: 255}
-		case "blue":
-			s = blink1.State{Blue: 255}
-		case "green":
-			s = blink1.State{Green: 255}
-		}
+			if _, e := ws.Write([]byte(input)); e != nil {
+				log.Fatal(e)
+				break
+			}
+		case response := <-receiver:
+			if response == "" {
+				log.Println("exited via response")
+				break
+			}
 
-		if e := d.SetState(s); e != nil {
-			fmt.Printf("error setting state: %s\n", e.Error())
+			log.Printf("response[%s]\n", response)
 		}
 	}
-
-	fmt.Printf("fin.\n")
-	d.SetState(blink1.State{})
 }
