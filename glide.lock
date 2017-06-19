@@ -1,10 +1,10 @@
-hash: c9610c4529f40afb1940f08ee4b87467c1b81a9162c5067438faeb911c9654cd
-updated: 2017-06-16T12:39:45.327927595-04:00
+hash: 19c8af52cf1a439ce1fec0648346a2c25bf65365809d4ddb6e956021aced52f4
+updated: 2017-06-19T15:20:34.348863091-04:00
 imports:
+- name: github.com/gorilla/websocket
+  version: 3ab3a8b8831546bd18fd182c20687ca853b2bb13
 - name: github.com/hink/go-blink1
   version: 00024678d9d548aac623267711505aa37491689e
-- name: golang.org/x/net
-  version: 8e573f4005aa312856df2ea97c32b9beac70dd89
   subpackages:
-  - websocket
+  - libusb
 testImports: []
