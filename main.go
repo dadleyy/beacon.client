@@ -1,136 +1,89 @@
 package main
 
-import "fmt"
+import "io"
+import "os"
 import "log"
-import "time"
-import "encoding/json"
+import "fmt"
+import "flag"
+import "sync"
+import "bytes"
 
 import "github.com/hink/go-blink1"
 import "github.com/gorilla/websocket"
-
-type ControlMessage struct {
-	DeviceId string        `json:"device_id"`
-	Red      uint8         `json:"red"`
-	Blue     uint8         `json:"blue"`
-	Green    uint8         `json:"green"`
-	LED      uint8         `json:"led"`
-	FadeTime time.Duration `json:"fade_time"`
-	Duration time.Duration `json:"duration"`
-}
-
-func (message *ControlMessage) State() blink1.State {
-	return blink1.State{
-		Red:      message.Red,
-		Green:    message.Green,
-		Blue:     message.Blue,
-		FadeTime: message.FadeTime,
-		Duration: message.Duration,
-	}
-}
+import "github.com/dadleyy/beacon.client/beacon"
 
 func main() {
-	url := "ws://0.0.0.0:12345/register"
+	options := struct {
+		apiHome       string
+		debugging     bool
+		commandBuffer int
+	}{}
 
-	device, e := blink1.OpenNextDevice()
+	flag.StringVar(&options.apiHome, "api", "0.0.0.0:12345", "the hostname of the beacon.api server")
+	flag.BoolVar(&options.debugging, "debug", false, "if true, the client will not attempt to open the blink device")
+	flag.IntVar(&options.commandBuffer, "command-buffer", 2, "amount of allowed commands to buffer")
+	flag.Parse()
 
-	if e != nil {
-		log.Printf("unable to open device: %s", e.Error())
+	if len(options.apiHome) < 1 {
+		flag.PrintDefaults()
+		return
+	}
+
+	logger := log.New(os.Stdout, "beacon client", log.Ldate|log.Ltime|log.Lshortfile)
+	var device beacon.Commandable
+
+	if options.debugging {
+		device = &beacon.StateLogger{log.New(os.Stdout, "beacon log device", log.Ldate|log.Ltime|log.Lshortfile)}
+	} else {
+		var e error
+		device, e = blink1.OpenNextDevice()
+
+		if e != nil {
+			logger.Fatalf("unable to open blink device: %s", e.Error())
+			return
+		}
 	}
 
 	defer device.Close()
 	defer device.SetState(blink1.State{})
+	dialer, endpoint := websocket.Dialer{}, fmt.Sprintf("ws://%s/%s", options.apiHome, beacon.ApiRegistrationEndpoint)
 
-	log.Println("Dialing connection...")
-	dialer := websocket.Dialer{}
-	ws, _, err := dialer.Dial(url, nil)
+	logger.Printf("opening connection to api: %s", endpoint)
+	ws, _, e := dialer.Dial(endpoint, nil)
 
-	if err != nil {
-		log.Fatal(err)
+	if e != nil {
+		logger.Fatalf("unable to connect to %s: %s", endpoint, e.Error())
 		return
 	}
 
 	defer ws.Close()
+	commandStream, wait, connected := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}, true
 
-	sender, receiver := make(chan string), make(chan string)
+	processor := beacon.CommandProcessor{
+		Logger:        log.New(os.Stdout, "message processor", log.Ldate|log.Ltime|log.Lshortfile),
+		Device:        device,
+		CommandStream: commandStream,
+	}
 
-	go func() {
-		for {
-			var s string
-
-			if _, e := fmt.Scanln(&s); e != nil {
-				break
-			}
-
-			sender <- s
-		}
-
-		sender <- ""
-	}()
-
-	go func() {
-		for {
-			log.Printf("reading from server...")
-			_, reader, e := ws.NextReader()
-
-			if e != nil {
-				log.Printf("unable to decode state: %s", e.Error())
-				break
-			}
-
-			decoder, message := json.NewDecoder(reader), ControlMessage{}
-
-			if e := decoder.Decode(&message); e != nil {
-				log.Printf("unable to decode state: %s", e.Error())
-				break
-			}
-
-			log.Printf("recieved message, device[%s]: %v", message.DeviceId, message.State())
-
-			if e := device.SetState(message.State()); e != nil {
-				log.Printf("unable to decode state: %s", e.Error())
-				break
-			}
-		}
-
-		receiver <- ""
-	}()
-
-	connected := true
+	wait.Add(1)
+	go processor.Start(&wait)
 
 	for connected {
-		log.Println("listing for input or response")
+		_, reader, e := ws.NextReader()
 
-		select {
-		case input := <-sender:
-			log.Printf("input[%s]\n", input)
-
-			if input == "" || input == "quit" {
-				connected = false
-				log.Println("exited via input")
-				break
-			}
-
-			writer, e := ws.NextWriter(websocket.TextMessage)
-
-			if e != nil {
-				connected = false
-				log.Fatal(e)
-				break
-			}
-
-			if _, e := writer.Write([]byte(input)); e != nil {
-				connected = false
-				log.Fatal(e)
-				break
-			}
-		case response := <-receiver:
-			if response == "" {
-				log.Println("exited via response")
-				connected = false
-				break
-			}
-
-			log.Printf("response[%s]\n", response)
+		if e != nil {
+			logger.Printf("lost connection to server: %s", e.Error())
+			connected = false
+			break
 		}
+
+		buffer := bytes.NewBuffer([]byte{})
+
+		if _, e := io.Copy(buffer, reader); e != nil {
+			logger.Printf("unable to decode header from message: %s", e.Error())
+			continue
+		}
+
+		commandStream <- buffer
 	}
 }
