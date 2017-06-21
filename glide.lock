@@ -1,6 +1,10 @@
-hash: 19c8af52cf1a439ce1fec0648346a2c25bf65365809d4ddb6e956021aced52f4
-updated: 2017-06-19T15:20:34.348863091-04:00
+hash: 0335ae72f1b5622d1c5b3fc8566f5d2b6f421419663b6104bf21a546b0469388
+updated: 2017-06-21T16:28:30.172996182-04:00
 imports:
+- name: github.com/golang/protobuf
+  version: 98fa357170587e470c5f27d3c3ea0947b71eb455
+  subpackages:
+  - proto
 - name: github.com/gorilla/websocket
   version: 3ab3a8b8831546bd18fd182c20687ca853b2bb13
 - name: github.com/hink/go-blink1
