@@ -11,6 +11,7 @@ import "bytes"
 import "github.com/hink/go-blink1"
 import "github.com/gorilla/websocket"
 import "github.com/dadleyy/beacon.client/beacon"
+import "github.com/dadleyy/beacon.client/beacon/defs"
 
 func main() {
 	options := struct {
@@ -46,7 +47,7 @@ func main() {
 
 	defer device.Close()
 	defer device.SetState(blink1.State{})
-	dialer, endpoint := websocket.Dialer{}, fmt.Sprintf("ws://%s/%s", options.apiHome, beacon.ApiRegistrationEndpoint)
+	dialer, endpoint := websocket.Dialer{}, fmt.Sprintf("ws://%s/%s", options.apiHome, defs.APIRegistrationEndpoint)
 
 	logger.Printf("opening connection to api: %s", endpoint)
 	ws, _, e := dialer.Dial(endpoint, nil)
@@ -59,11 +60,7 @@ func main() {
 	defer ws.Close()
 	commandStream, wait, connected := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}, true
 
-	processor := beacon.CommandProcessor{
-		Logger:        log.New(os.Stdout, "message processor", log.Ldate|log.Ltime|log.Lshortfile),
-		Device:        device,
-		CommandStream: commandStream,
-	}
+	processor := beacon.NewCommandProcessor(device, commandStream)
 
 	wait.Add(1)
 	go processor.Start(&wait)
