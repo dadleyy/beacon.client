@@ -40,7 +40,7 @@ func (processor *CommandProcessor) Start(wg *sync.WaitGroup) {
 			welcome := &interchange.WelcomeMessage{}
 
 			if e := proto.Unmarshal(message.GetPayload(), welcome); e != nil {
-				processor.Printf("unable to unmarshal welcome payload", e.Error())
+				processor.Printf("unable to unmarshal welcome payload: %s", e.Error())
 				continue
 			}
 
@@ -49,7 +49,7 @@ func (processor *CommandProcessor) Start(wg *sync.WaitGroup) {
 			control := &interchange.ControlMessage{}
 
 			if e := proto.Unmarshal(message.GetPayload(), control); e != nil {
-				processor.Printf("unable to unmarshal control payload", e.Error())
+				processor.Printf("unable to unmarshal control payload: %s", e.Error())
 				continue
 			}
 
