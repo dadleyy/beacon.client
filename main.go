@@ -60,10 +60,12 @@ func main() {
 	defer ws.Close()
 	commandStream, wait, connected := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}, true
 
-	processor := beacon.NewCommandProcessor(device, commandStream)
+	commands, heartbeat := beacon.NewCommandProcessor(device, commandStream), beacon.NewHeartbeatProcessor(ws)
 
-	wait.Add(1)
-	go processor.Start(&wait)
+	for _, p := range []beacon.Processor{commands, heartbeat} {
+		wait.Add(1)
+		go p.Start(&wait)
+	}
 
 	for connected {
 		_, reader, e := ws.NextReader()
