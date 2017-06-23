@@ -68,16 +68,16 @@ func main() {
 
 	defer device.Close()
 	defer device.SetState(blink1.State{})
-	dialer, apiUrl := websocket.Dialer{}, fmt.Sprintf("ws://%s/%s", options.apiHome, defs.APIRegistrationEndpoint)
+	dialer, apiURL := websocket.Dialer{}, fmt.Sprintf("ws://%s/%s", options.apiHome, defs.APIRegistrationEndpoint)
 	header := http.Header{}
 
 	header.Set(defs.APIAuthorizationHeader, sharedSecret)
 
-	logger.Printf("opening connection to api: %s", apiUrl)
-	ws, _, e := dialer.Dial(apiUrl, header)
+	logger.Printf("opening connection to api: %s", apiURL)
+	ws, _, e := dialer.Dial(apiURL, header)
 
 	if e != nil {
-		logger.Fatalf("unable to connect to %s: %s", apiUrl, e.Error())
+		logger.Fatalf("unable to connect to %s: %s", apiURL, e.Error())
 		return
 	}
 
