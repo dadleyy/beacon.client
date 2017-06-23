@@ -6,6 +6,7 @@ import "log"
 import "fmt"
 import "flag"
 import "sync"
+import "time"
 import "bytes"
 
 import "github.com/hink/go-blink1"
@@ -15,14 +16,16 @@ import "github.com/dadleyy/beacon.client/beacon/defs"
 
 func main() {
 	options := struct {
-		apiHome       string
-		debugging     bool
-		commandBuffer int
+		apiHome        string
+		debugging      bool
+		commandBuffer  int
+		heartbeatDelay int
 	}{}
 
 	flag.StringVar(&options.apiHome, "api", "0.0.0.0:12345", "the hostname of the beacon.api server")
 	flag.BoolVar(&options.debugging, "debug", false, "if true, the client will not attempt to open the blink device")
 	flag.IntVar(&options.commandBuffer, "command-buffer", 2, "amount of allowed commands to buffer")
+	flag.IntVar(&options.heartbeatDelay, "heartbeat-delay", 10, "amount of seconds between heartbeat pings")
 	flag.Parse()
 
 	if len(options.apiHome) < 1 {
@@ -59,11 +62,15 @@ func main() {
 
 	defer ws.Close()
 	commandStream, wait, connected := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}, true
+	delay := time.Duration(int64(options.heartbeatDelay) * time.Second.Nanoseconds())
 
-	processor := beacon.NewCommandProcessor(device, commandStream)
+	commands := beacon.NewCommandProcessor(device, commandStream)
+	heartbeat := beacon.NewHeartbeatProcessor(ws, delay)
 
-	wait.Add(1)
-	go processor.Start(&wait)
+	for _, p := range []beacon.Processor{commands, heartbeat} {
+		wait.Add(1)
+		go p.Start(&wait)
+	}
 
 	for connected {
 		_, reader, e := ws.NextReader()

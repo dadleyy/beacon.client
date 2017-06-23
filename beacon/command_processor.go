@@ -26,6 +26,7 @@ type CommandProcessor struct {
 // Start initiates the reading of the command stream
 func (processor *CommandProcessor) Start(wg *sync.WaitGroup) {
 	defer wg.Done()
+	processor.Printf("command processor starting")
 
 	for buffer := range processor.commandStream {
 		message := &interchange.DeviceMessage{}
