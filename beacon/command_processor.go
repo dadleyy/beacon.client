@@ -7,11 +7,12 @@ import "bytes"
 import "github.com/hink/go-blink1"
 import "github.com/golang/protobuf/proto"
 
+import "github.com/dadleyy/beacon.client/beacon/defs"
 import "github.com/dadleyy/beacon.client/beacon/interchange"
 
 // NewCommandProcessor builds a new command processor w/ a default logger
 func NewCommandProcessor(device Commandable, stream <-chan *bytes.Buffer) *CommandProcessor {
-	logger := log.New(os.Stdout, "command stream ", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.New(os.Stdout, defs.CommandProcessorLoggerPrefix, defs.DefaultLogFlags)
 	return &CommandProcessor{logger, device, stream}
 }
 

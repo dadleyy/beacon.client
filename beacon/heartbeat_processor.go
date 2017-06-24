@@ -6,9 +6,11 @@ import "sync"
 import "time"
 import "github.com/gorilla/websocket"
 
+import "github.com/dadleyy/beacon.client/beacon/defs"
+
 // NewHeartbeatProcessor creates a new processor for heartbeats
 func NewHeartbeatProcessor(connection *websocket.Conn, delay time.Duration) *HeartbeatProcessor {
-	logger := log.New(os.Stdout, "heartbeat", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.New(os.Stdout, defs.HeartbeatProcessorLoggerPrefix, defs.DefaultLogFlags)
 	return &HeartbeatProcessor{logger, delay, connection}
 }
 
