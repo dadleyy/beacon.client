@@ -37,7 +37,8 @@ func main() {
 		return
 	}
 
-	logger := log.New(os.Stdout, "beacon client", log.Ldate|log.Ltime|log.Lshortfile)
+	logger := log.New(os.Stdout, defs.RuntimeLoggerPrefix, defs.DefaultLogFlags)
+
 	var device beacon.Commandable
 
 	key, e := security.ReadDeviceKeyFromFile(options.privateKeyfile)
@@ -55,7 +56,9 @@ func main() {
 	}
 
 	if options.debugging {
-		device = &beacon.StateLogger{log.New(os.Stdout, "beacon log device", log.Ldate|log.Ltime|log.Lshortfile)}
+		debugLog := log.New(os.Stdout, defs.DebugStateLoggerPrefix, defs.DefaultLogFlags)
+		device = &beacon.StateLogger{debugLog}
+		logger.Printf("shared secret: \n\n%s\n\n", sharedSecret)
 	} else {
 		var e error
 		device, e = blink1.OpenNextDevice()
