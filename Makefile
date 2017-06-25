@@ -18,7 +18,7 @@ COVERAGE=goverage
 COVERAGE_REPORT=coverage.out
 
 SRC_DIR=./beacon
-GO_SRC=$(wildcard $(MAIN) $(SRC_DIR)/**/*.go)
+GO_SRC=$(wildcard $(MAIN) $(SRC_DIR)/**/*.go $(SRC_DIR)/*.go)
 
 INTERCHANGE_DIR=$(SRC_DIR)/interchange
 INTERCHANGE_SRC=$(wildcard $(INTERCHANGE_DIR)/*.proto)
