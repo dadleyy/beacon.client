@@ -1,17 +1,14 @@
 package main
 
-import "io"
 import "os"
 import "log"
-import "fmt"
 import "flag"
 import "sync"
 import "time"
 import "bytes"
-import "net/http"
+import "net/url"
 
 import "github.com/hink/go-blink1"
-import "github.com/gorilla/websocket"
 import "github.com/dadleyy/beacon.client/beacon"
 import "github.com/dadleyy/beacon.client/beacon/defs"
 import "github.com/dadleyy/beacon.client/beacon/security"
@@ -23,13 +20,15 @@ func main() {
 		commandBuffer  int
 		heartbeatDelay int
 		privateKeyfile string
+		deviceName     string
 	}{}
 
-	flag.StringVar(&options.apiHome, "api", "0.0.0.0:12345", "the hostname of the beacon.api server")
+	flag.StringVar(&options.apiHome, "api", "http://0.0.0.0:12345", "the hostname of the beacon.api server")
 	flag.BoolVar(&options.debugging, "debug", false, "if true, the client will not attempt to open the blink device")
 	flag.IntVar(&options.commandBuffer, "command-buffer", 2, "amount of allowed commands to buffer")
 	flag.IntVar(&options.heartbeatDelay, "heartbeat-delay", 10, "amount of seconds between heartbeat pings")
 	flag.StringVar(&options.privateKeyfile, "privte-key", ".keys/private.pem", "the filename of the private key")
+	flag.StringVar(&options.deviceName, "device-name", "", "if provided, this will attempt to register the name with the api")
 	flag.Parse()
 
 	if len(options.apiHome) < 1 {
@@ -71,43 +70,53 @@ func main() {
 
 	defer device.Close()
 	defer device.SetState(blink1.State{})
-	dialer, apiURL := websocket.Dialer{}, fmt.Sprintf("ws://%s/%s", options.apiHome, defs.APIRegistrationEndpoint)
-	header := http.Header{}
 
-	header.Set(defs.APIAuthorizationHeader, sharedSecret)
-
-	logger.Printf("opening connection to api: %s", apiURL)
-	ws, _, e := dialer.Dial(apiURL, header)
+	apiHome, e := url.Parse(options.apiHome)
 
 	if e != nil {
-		logger.Fatalf("unable to connect to %s: %s", apiURL, e.Error())
+		logger.Fatalf("unable to open blink device: %s", e.Error())
 		return
 	}
 
-	defer ws.Close()
-	commandStream, wait, connected := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}, true
+	apiHome.Path = defs.APIRegistrationEndpoint
+
+	websocket := &beacon.WebsocketSubscriber{
+		Config: beacon.WebsocketConfig{
+			APIHome: apiHome,
+			Secret:  sharedSecret,
+		},
+	}
+
+	if options.deviceName != "" {
+		e := websocket.Preregister(options.deviceName)
+
+		if e != nil {
+			logger.Printf("unable to register name \"%s\" with api: %s", options.deviceName, e.Error())
+			return
+		}
+	}
+
+	if e := websocket.Connect(); e != nil {
+		logger.Fatalf("unable to open api subscription: %s (%s)", e.Error(), apiHome.String())
+		return
+	}
+
+	defer websocket.Close()
+	commandStream, wait := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}
 	delay := time.Duration(int64(options.heartbeatDelay) * time.Second.Nanoseconds())
 
 	commands := beacon.NewCommandProcessor(device, commandStream)
-	heartbeat := beacon.NewHeartbeatProcessor(ws, delay)
+	heartbeat := beacon.NewHeartbeatProcessor(websocket, delay)
 
 	for _, p := range []beacon.Processor{commands, heartbeat} {
 		wait.Add(1)
 		go p.Start(&wait)
 	}
 
-	for connected {
-		_, reader, e := ws.NextReader()
-
-		if e != nil {
-			logger.Printf("lost connection to server: %s", e.Error())
-			connected = false
-			break
-		}
-
+	for websocket.Connected() {
 		buffer := bytes.NewBuffer([]byte{})
 
-		if _, e := io.Copy(buffer, reader); e != nil {
+		if e := websocket.ReadInto(buffer); e != nil {
 			logger.Printf("unable to decode header from message: %s", e.Error())
 			continue
 		}
