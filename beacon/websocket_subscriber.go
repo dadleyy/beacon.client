@@ -49,7 +49,17 @@ func (subscriber *WebsocketSubscriber) Preregister(name string) error {
 
 // Ping simply writes the data to the websocket
 func (subscriber *WebsocketSubscriber) Ping(data []byte) error {
-	return nil
+	writer, e := subscriber.connection.NextWriter(websocket.TextMessage)
+
+	if e != nil {
+		return e
+	}
+
+	defer writer.Close()
+
+	_, e = writer.Write(data)
+
+	return e
 }
 
 // ReadInto opens a new reader from the websocket and copies the data into the writer
