@@ -49,9 +49,14 @@ func (subscriber *WebsocketSubscriber) Preregister(name string) error {
 
 // Ping simply writes the data to the websocket
 func (subscriber *WebsocketSubscriber) Ping(data []byte) error {
+	if subscriber.connection == nil {
+		return fmt.Errorf("connection-closed")
+	}
+
 	writer, e := subscriber.connection.NextWriter(websocket.TextMessage)
 
 	if e != nil {
+		subscriber.connected = 0
 		return e
 	}
 
@@ -59,11 +64,19 @@ func (subscriber *WebsocketSubscriber) Ping(data []byte) error {
 
 	_, e = writer.Write(data)
 
+	if e != nil {
+		subscriber.connected = 0
+	}
+
 	return e
 }
 
 // ReadInto opens a new reader from the websocket and copies the data into the writer
 func (subscriber *WebsocketSubscriber) ReadInto(writer io.Writer) error {
+	if subscriber.connection == nil {
+		return fmt.Errorf("connection-closed")
+	}
+
 	_, r, e := subscriber.connection.NextReader()
 
 	if e != nil {
@@ -72,6 +85,10 @@ func (subscriber *WebsocketSubscriber) ReadInto(writer io.Writer) error {
 	}
 
 	_, e = io.Copy(writer, r)
+
+	if e != nil {
+		subscriber.connected = 0
+	}
 
 	return e
 }
@@ -84,11 +101,20 @@ func (subscriber *WebsocketSubscriber) Connected() bool {
 // Close closes the websocket connection
 func (subscriber *WebsocketSubscriber) Close() error {
 	subscriber.connected = 0
+
+	if subscriber.connection == nil {
+		return nil
+	}
+
 	return subscriber.connection.Close()
 }
 
 // Connect opens the websocket connection
 func (subscriber *WebsocketSubscriber) Connect() (e error) {
+	if subscriber.connection != nil {
+		subscriber.Close()
+	}
+
 	config, header, dialer := subscriber.Config, http.Header{}, websocket.Dialer{}
 	header.Set(defs.APIAuthorizationHeader, config.Secret)
 	subscriber.connection, _, e = dialer.Dial(subscriber.websocketAddress(), header)

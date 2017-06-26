@@ -21,14 +21,16 @@ func main() {
 		heartbeatDelay int
 		privateKeyfile string
 		deviceName     string
+		maxRetries     int
 	}{}
 
 	flag.StringVar(&options.apiHome, "api", "http://0.0.0.0:12345", "the hostname of the beacon.api server")
 	flag.BoolVar(&options.debugging, "debug", false, "if true, the client will not attempt to open the blink device")
 	flag.IntVar(&options.commandBuffer, "command-buffer", 2, "amount of allowed commands to buffer")
 	flag.IntVar(&options.heartbeatDelay, "heartbeat-delay", 10, "amount of seconds between heartbeat pings")
+	flag.IntVar(&options.maxRetries, "max-retries", 10, "amount of attempts the client will attempt to reconnect")
 	flag.StringVar(&options.privateKeyfile, "privte-key", ".keys/private.pem", "the filename of the private key")
-	flag.StringVar(&options.deviceName, "device-name", "", "if provided, this will attempt to register the name with the api")
+	flag.StringVar(&options.deviceName, "device-name", "", "if provided, this will attempt to pre-register with the api")
 	flag.Parse()
 
 	if len(options.apiHome) < 1 {
@@ -103,24 +105,39 @@ func main() {
 
 	defer websocket.Close()
 	commandStream, wait := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}
-	delay := time.Duration(int64(options.heartbeatDelay) * time.Second.Nanoseconds())
+	delay, retries := time.Duration(int64(options.heartbeatDelay)*time.Second.Nanoseconds()), 0
 
 	commands := beacon.NewCommandProcessor(device, commandStream)
-	heartbeat := beacon.NewHeartbeatProcessor(websocket, delay)
+	heartbeat := beacon.NewHeartbeatProcessor(websocket, delay, uint(options.maxRetries))
 
 	for _, p := range []beacon.Processor{commands, heartbeat} {
 		wait.Add(1)
 		go p.Start(&wait)
 	}
 
-	for websocket.Connected() {
+	for websocket.Connected() || retries < options.maxRetries {
 		buffer := bytes.NewBuffer([]byte{})
 
 		if e := websocket.ReadInto(buffer); e != nil {
-			logger.Printf("unable to decode header from message: %s", e.Error())
+			logger.Printf("bad read: %s, retrying after %d seconds", e.Error(), 5)
+			retries++
+			time.Sleep(time.Duration(time.Second.Nanoseconds() * int64(5)))
+
+			if options.deviceName != "" {
+				e := websocket.Preregister(options.deviceName)
+
+				if e != nil {
+					logger.Printf("unable to pre-register name \"%s\" on connection retry: %s", options.deviceName, e.Error())
+					continue
+				}
+			}
+
+			logger.Printf("attempting retry: %d", retries)
+			websocket.Connect()
 			continue
 		}
 
+		retries = 0
 		commandStream <- buffer
 	}
 }
