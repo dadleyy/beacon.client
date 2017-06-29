@@ -4,6 +4,8 @@ import "os"
 import "log"
 import "sync"
 import "bytes"
+import "crypto"
+import "crypto/rand"
 import "github.com/hink/go-blink1"
 import "github.com/golang/protobuf/proto"
 
@@ -11,14 +13,15 @@ import "github.com/dadleyy/beacon.client/beacon/defs"
 import "github.com/dadleyy/beacon.client/beacon/interchange"
 
 // NewCommandProcessor builds a new command processor w/ a default logger
-func NewCommandProcessor(device Commandable, stream <-chan *bytes.Buffer) *CommandProcessor {
+func NewCommandProcessor(device Commandable, key crypto.Decrypter, stream <-chan *bytes.Buffer) *CommandProcessor {
 	logger := log.New(os.Stdout, defs.CommandProcessorLoggerPrefix, defs.DefaultLogFlags)
-	return &CommandProcessor{logger, device, stream}
+	return &CommandProcessor{logger, key, device, stream}
 }
 
 // CommandProcessor defines the main background processor that receives device messages and sends them to the device
 type CommandProcessor struct {
 	*log.Logger
+	crypto.Decrypter
 
 	device        Commandable
 	commandStream <-chan *bytes.Buffer
@@ -31,9 +34,15 @@ func (processor *CommandProcessor) Start(wg *sync.WaitGroup) {
 
 	for buffer := range processor.commandStream {
 		message := &interchange.DeviceMessage{}
+		decodedMessage, e := processor.Decrypt(rand.Reader, buffer.Bytes(), nil)
 
-		if e := proto.UnmarshalMerge(buffer.Bytes(), message); e != nil {
-			processor.Printf("receved strange message: %s", e.Error())
+		if e != nil {
+			processor.Printf("[WARN] unable to decode message from processor: %s", e.Error())
+			continue
+		}
+
+		if e := proto.UnmarshalMerge(decodedMessage, message); e != nil {
+			processor.Printf("[WARN] unable to unmarshal protobuf message: %s", e.Error())
 			continue
 		}
 
