@@ -3,6 +3,18 @@ package defs
 import "log"
 
 const (
+	// DebugLogLevelTag is used for debugf logger calls
+	DebugLogLevelTag = "debug"
+
+	// InfoLogLevelTag is used for infof logger calls
+	InfoLogLevelTag = "info"
+
+	// WarnLogLevelTag is used for errorf logger calls
+	WarnLogLevelTag = "warn"
+
+	// ErrorLogLevelTag is used for errorf logger calls
+	ErrorLogLevelTag = "error"
+
 	// RuntimeLoggerPrefix is the logger prefix used in the main runtime loop
 	RuntimeLoggerPrefix = "[client runtime] "
 

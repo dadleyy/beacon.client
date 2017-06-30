@@ -1,7 +1,5 @@
 package main
 
-import "os"
-import "log"
 import "flag"
 import "sync"
 import "time"
@@ -11,6 +9,7 @@ import "net/url"
 import "github.com/hink/go-blink1"
 import "github.com/dadleyy/beacon.client/beacon"
 import "github.com/dadleyy/beacon.client/beacon/defs"
+import "github.com/dadleyy/beacon.client/beacon/logging"
 import "github.com/dadleyy/beacon.client/beacon/security"
 
 func main() {
@@ -38,34 +37,39 @@ func main() {
 		return
 	}
 
-	logger := log.New(os.Stdout, defs.RuntimeLoggerPrefix, defs.DefaultLogFlags)
+	logger := logging.New(defs.RuntimeLoggerPrefix, logging.Green)
 
 	var device beacon.Commandable
 
 	key, e := security.ReadDeviceKeyFromFile(options.privateKeyfile)
 
 	if e != nil {
-		logger.Printf("invalid file name: %s", e.Error())
+		logger.Errorf("invalid file name: %s", e.Error())
+		return
+	}
+
+	if e != nil {
+		logger.Errorf("invalid api (%s) host: %s", options.apiHome, e.Error())
 		return
 	}
 
 	sharedSecret, e := key.SharedSecret()
 
 	if e != nil {
-		logger.Printf("invalid file name: %s", e.Error())
+		logger.Errorf("invalid file name: %s", e.Error())
 		return
 	}
 
 	if options.debugging {
-		debugLog := log.New(os.Stdout, defs.DebugStateLoggerPrefix, defs.DefaultLogFlags)
+		debugLog := logging.New(defs.DebugStateLoggerPrefix, logging.Cyan)
 		device = &beacon.StateLogger{debugLog}
-		logger.Printf("shared secret: \n\n%s\n\n", sharedSecret)
+		logger.Debugf("shared secret: \n\n%s\n\n", sharedSecret)
 	} else {
 		var e error
 		device, e = blink1.OpenNextDevice()
 
 		if e != nil {
-			logger.Fatalf("unable to open blink device: %s", e.Error())
+			logger.Errorf("unable to open blink device: %s", e.Error())
 			return
 		}
 	}
@@ -74,11 +78,6 @@ func main() {
 	defer device.SetState(blink1.State{})
 
 	apiHome, e := url.Parse(options.apiHome)
-
-	if e != nil {
-		logger.Fatalf("unable to open blink device: %s", e.Error())
-		return
-	}
 
 	apiHome.Path = defs.APIRegistrationEndpoint
 
@@ -93,13 +92,13 @@ func main() {
 		e := websocket.Preregister(options.deviceName)
 
 		if e != nil {
-			logger.Printf("unable to register name \"%s\" with api: %s", options.deviceName, e.Error())
+			logger.Errorf("unable to register name \"%s\" with api: %s", options.deviceName, e.Error())
 			return
 		}
 	}
 
 	if e := websocket.Connect(); e != nil {
-		logger.Fatalf("unable to open api subscription: %s (%s)", e.Error(), apiHome.String())
+		logger.Errorf("unable to open api subscription: %s (%s)", e.Error(), apiHome.String())
 		return
 	}
 
@@ -119,7 +118,7 @@ func main() {
 		buffer := bytes.NewBuffer([]byte{})
 
 		if e := websocket.ReadInto(buffer); e != nil {
-			logger.Printf("bad read: %s, retrying after %d seconds", e.Error(), 5)
+			logger.Warnf("bad read: %s, retrying after %d seconds", e.Error(), 5)
 			retries++
 			time.Sleep(time.Duration(time.Second.Nanoseconds() * int64(5)))
 
@@ -127,12 +126,12 @@ func main() {
 				e := websocket.Preregister(options.deviceName)
 
 				if e != nil {
-					logger.Printf("unable to pre-register name \"%s\" on connection retry: %s", options.deviceName, e.Error())
+					logger.Warnf("unable to pre-register name \"%s\" on connection retry: %s", options.deviceName, e.Error())
 					continue
 				}
 			}
 
-			logger.Printf("attempting retry: %d", retries)
+			logger.Infof("attempting retry: %d", retries)
 			websocket.Connect()
 			continue
 		}
@@ -140,4 +139,6 @@ func main() {
 		retries = 0
 		commandStream <- buffer
 	}
+
+	logger.Warnf("connection loop terminated afte %d retries", retries)
 }
