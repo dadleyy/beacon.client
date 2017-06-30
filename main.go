@@ -106,10 +106,13 @@ func main() {
 	commandStream, wait := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}
 	delay, retries := time.Duration(int64(options.heartbeatDelay)*time.Second.Nanoseconds()), 0
 
-	commands := beacon.NewCommandProcessor(device, key, commandStream)
-	heartbeat := beacon.NewHeartbeatProcessor(websocket, delay, uint(options.maxRetries))
+	processors := []beacon.Processor{
+		beacon.NewCommandProcessor(device, key, commandStream),
+		beacon.NewHeartbeatProcessor(websocket, delay, uint(options.maxRetries)),
+		beacon.NewFeedbackProcessor(),
+	}
 
-	for _, p := range []beacon.Processor{commands, heartbeat} {
+	for _, p := range processors {
 		wait.Add(1)
 		go p.Start(&wait)
 	}

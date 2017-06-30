@@ -7,14 +7,14 @@ import "github.com/dadleyy/beacon.client/beacon/defs"
 import "github.com/dadleyy/beacon.client/beacon/logging"
 
 // NewHeartbeatProcessor creates a new processor for heartbeats
-func NewHeartbeatProcessor(pinger Pingable, delay time.Duration, retries uint) *HeartbeatProcessor {
+func NewHeartbeatProcessor(pinger Pingable, delay time.Duration, retries uint) Processor {
 	logger := logging.New(defs.HeartbeatProcessorLoggerPrefix, logging.Cyan)
 	return &HeartbeatProcessor{logger, delay, pinger, retries}
 }
 
 // HeartbeatProcessor is responsible for keeping the websocket connection alive
 type HeartbeatProcessor struct {
-	*logging.Logger
+	logging.Logger
 	delay      time.Duration
 	pinger     Pingable
 	maxRetries uint

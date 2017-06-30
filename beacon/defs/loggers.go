@@ -21,6 +21,9 @@ const (
 	// DebugStateLoggerPrefix is the logger prefix used by the state logger
 	DebugStateLoggerPrefix = "[state logger] "
 
+	// FeedbackProcessorLoggerPrefix is used by the command processor
+	FeedbackProcessorLoggerPrefix = "[feedback processor] "
+
 	// HeartbeatProcessorLoggerPrefix is used by the command processor
 	HeartbeatProcessorLoggerPrefix = "[heartbeat processor] "
 

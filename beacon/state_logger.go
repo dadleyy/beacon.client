@@ -5,12 +5,11 @@ import "github.com/dadleyy/beacon.client/beacon/logging"
 
 // StateLogger implements the Commandable interface for debugging purposes
 type StateLogger struct {
-	*logging.Logger
+	logging.Logger
 }
 
 // Close no-op
-func (logger *StateLogger) Close() {
-}
+func (logger *StateLogger) Close() {}
 
 // SetState logs out the state received by the "device"
 func (logger *StateLogger) SetState(state blink1.State) error {
