@@ -110,13 +110,17 @@ func main() {
 	}
 
 	defer subscriber.Close()
-	commandStream, bgSync := make(chan *bytes.Buffer, options.commandBuffer), sync.WaitGroup{}
+
+	commandStream := make(chan *bytes.Buffer, options.commandBuffer)
+	feedbackStream := make(chan *beacon.FeedbackMessage, options.commandBuffer)
+
+	bgSync := sync.WaitGroup{}
 	delay, retries := time.Duration(int64(options.heartbeatDelay)*time.Second.Nanoseconds()), 0
 
 	processors := []beacon.Processor{
-		beacon.NewCommandProcessor(device, key, commandStream),
+		beacon.NewCommandProcessor(device, key, commandStream, feedbackStream),
 		beacon.NewHeartbeatProcessor(subscriber, delay, uint(options.maxRetries)),
-		beacon.NewFeedbackProcessor(),
+		beacon.NewFeedbackProcessor(feedbackStream, *apiHome),
 	}
 
 	// Iterate over each background processor, spawining each in a goroutine with a sync.WaitGroup.
@@ -140,7 +144,7 @@ func main() {
 			}
 		}
 
-		// If there was an error and we have reached our total count, break from the loop and log the rror
+		// If there was an error and we have reached our total count, break from the loop and log the error.
 		if e != nil && retries+1 == options.maxRetries {
 			logger.Errorf("max tries reached & bad read: %s", e.Error())
 			break
@@ -151,27 +155,31 @@ func main() {
 			logger.Warnf("bad read: %s, retrying after %d seconds", e.Error(), 5)
 		}
 
-		// Bump our retry count
+		// Bump our retry count.
 		retries++
 
-		// Wait the specified amount of seconds
+		// Wait the specified amount of seconds.
 		time.Sleep(time.Duration(time.Second.Nanoseconds() * int64(options.retryDelay)))
 
 		logger.Infof("attempting retry: %d", retries)
 
-		// If a device name was provided at startup, we need to pre-register again
+		// If a device name was provided at startup, we need to pre-register again.
 		if options.deviceName != "" {
 			e := subscriber.Preregister(options.deviceName)
 
-			// If we are unable to re-preregister (e.g the server is still down) continue on
+			// If we are unable to re-preregister (e.g the server is still down) continue on.
 			if e != nil {
 				logger.Warnf("failed preregister \"%s\" on retry: %s", options.deviceName, e.Error())
 			}
 		}
 
-		// Retry our connection attempt at this point
+		// Retry our connection attempt at this point.
 		subscriber.Connect()
 	}
+
+	// Close the command stream, terminating the command processor.
+	close(commandStream)
+	close(feedbackStream)
 
 	// Wait for all background processors to complete.
 	bgSync.Wait()

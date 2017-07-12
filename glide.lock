@@ -1,14 +1,12 @@
-hash: 6d77183bf39bbd95ee52ab9c9b05d7aa4920e0fcddd41f571721b306e42d7f8c
-updated: 2017-06-30T13:47:51.429102884-04:00
+hash: f5771dad8425d824d9b23ee5883a357f3d4e6d00cdb9a70126255ad31f484cc3
+updated: 2017-07-12T13:47:32.190485045-04:00
 imports:
-- name: github.com/dadleyy/beacon.api
-  version: d638fd9db0ddb12731738b56a181bceec61cd1ed
-  subpackages:
-  - beacon/defs
 - name: github.com/golang/protobuf
   version: 98fa357170587e470c5f27d3c3ea0947b71eb455
   subpackages:
   - proto
+- name: github.com/google/uuid
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/gorilla/websocket
   version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
 - name: github.com/hink/go-blink1
