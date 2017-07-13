@@ -112,7 +112,7 @@ func main() {
 	defer subscriber.Close()
 
 	commandStream := make(chan *bytes.Buffer, options.commandBuffer)
-	feedbackStream := make(chan *beacon.FeedbackMessage, options.commandBuffer)
+	feedbackStream := make(chan *beacon.Feedback, options.commandBuffer)
 
 	bgSync := sync.WaitGroup{}
 	delay, retries := time.Duration(int64(options.heartbeatDelay)*time.Second.Nanoseconds()), 0

@@ -20,7 +20,7 @@ import "github.com/dadleyy/beacon.client/beacon/interchange"
 type Decrypter crypto.Decrypter
 
 // NewCommandProcessor builds a new command processor w/ a default logger.
-func NewCommandProcessor(d Commandable, k Decrypter, c <-chan *bytes.Buffer, f chan<- *FeedbackMessage) Processor {
+func NewCommandProcessor(d Commandable, k Decrypter, c <-chan *bytes.Buffer, f chan<- *Feedback) Processor {
 	l := logging.New(defs.CommandProcessorLoggerPrefix, logging.Magenta)
 	return &CommandProcessor{l, k, d, c, f, nil, nil}
 }
@@ -32,10 +32,10 @@ type CommandProcessor struct {
 
 	device         Commandable
 	commandStream  <-chan *bytes.Buffer
-	feedbackStream chan<- *FeedbackMessage
+	feedbackStream chan<- *Feedback
 
 	latestMessage *uuid.UUID
-	serverKey     *rsa.PublicKey
+	registration  *RegistrationInfo
 }
 
 // Start initiates the reading of the command stream
@@ -66,19 +66,17 @@ func (processor *CommandProcessor) Start(wg *sync.WaitGroup) {
 		case interchange.DeviceMessageType_WELCOME:
 			// If we'reve receved a welcome message, we need to extract the server public key from the message contents.
 			var e error
-			processor.serverKey, e = processor.parseWelcomeMessage(message)
+			processor.registration, e = processor.parseWelcomeMessage(message)
 
 			if e != nil {
 				processor.Warnf("incorrect shared secret key, not rsa format: %s", e.Error())
 				continue
 			}
-
-			processor.Debugf("welcome message: secret[%v]", processor.serverKey)
 		case interchange.DeviceMessageType_CONTROL:
 			control := &interchange.ControlMessage{}
 
 			// If we haven't received the server key, do nothing!
-			if processor.serverKey == nil {
+			if processor.registration == nil {
 				processor.Warnf("have not received server key from welcome message, continuing")
 				continue
 			}
@@ -136,13 +134,20 @@ func (processor *CommandProcessor) validateMessage(message *interchange.DeviceMe
 	return nil
 }
 
-func (processor *CommandProcessor) parseWelcomeMessage(message *interchange.DeviceMessage) (*rsa.PublicKey, error) {
+func (processor *CommandProcessor) parseWelcomeMessage(message *interchange.DeviceMessage) (*RegistrationInfo, error) {
 	welcome := &interchange.WelcomeMessage{}
+
+	auth := message.GetAuthentication()
+
+	if auth == nil {
+		return nil, fmt.Errorf("invalid-message-auth")
+	}
 
 	if e := proto.Unmarshal(message.GetPayload(), welcome); e != nil {
 		return nil, e
 	}
 
+	processor.Debugf("received welcome, deviceID[%s]", auth.DeviceID)
 	block, e := hex.DecodeString(welcome.SharedSecret)
 
 	if e != nil {
@@ -161,7 +166,7 @@ func (processor *CommandProcessor) parseWelcomeMessage(message *interchange.Devi
 		return nil, fmt.Errorf("invalid-public-key")
 	}
 
-	return serverKey, nil
+	return &RegistrationInfo{serverKey, auth.DeviceID}, nil
 }
 
 func (processor *CommandProcessor) execute(control *interchange.ControlMessage, id *uuid.UUID) {
@@ -181,13 +186,13 @@ func (processor *CommandProcessor) execute(control *interchange.ControlMessage, 
 
 		if e := processor.device.SetState(state); e != nil {
 			processor.Errorf("unable to set device state, aborting control frames: %s", e.Error())
-			processor.feedbackStream <- &FeedbackMessage{Key: processor.serverKey, Error: e}
+			processor.feedbackStream <- &Feedback{Registration: processor.registration, Error: e}
 			return
 		}
 
-		processor.feedbackStream <- &FeedbackMessage{
-			Key:   processor.serverKey,
-			State: state,
+		processor.feedbackStream <- &Feedback{
+			Registration: processor.registration,
+			State:        state,
 		}
 	}
 
