@@ -1,9 +1,12 @@
 package security
 
+import "io"
 import "fmt"
 import "io/ioutil"
+import "crypto"
 import "crypto/rsa"
 import "crypto/x509"
+import "crypto/sha256"
 import "encoding/pem"
 import "encoding/hex"
 
@@ -21,6 +24,12 @@ func (key *DeviceKey) SharedSecret() (string, error) {
 	}
 
 	return hex.EncodeToString(publicKeyData), nil
+}
+
+// Decrypt implements crypto.Decrypter
+func (key *DeviceKey) Decrypt(rand io.Reader, encodedMessage []byte, opts crypto.DecrypterOpts) ([]byte, error) {
+	decoded, err := rsa.DecryptOAEP(sha256.New(), rand, key.PrivateKey, encodedMessage, []byte("beacon"))
+	return decoded, err
 }
 
 // ReadDeviceKeyFromFile returns a new device key from a filename

@@ -6,3 +6,7 @@ import:
 - package: github.com/golang/protobuf
   subpackages:
   - proto
+- package: github.com/ttacon/chalk
+  version: ^0.1.0
+- package: github.com/google/uuid
+  version: ^0.2.0

@@ -1,14 +1,18 @@
-hash: 0335ae72f1b5622d1c5b3fc8566f5d2b6f421419663b6104bf21a546b0469388
-updated: 2017-06-21T16:28:30.172996182-04:00
+hash: f5771dad8425d824d9b23ee5883a357f3d4e6d00cdb9a70126255ad31f484cc3
+updated: 2017-07-12T13:47:32.190485045-04:00
 imports:
 - name: github.com/golang/protobuf
   version: 98fa357170587e470c5f27d3c3ea0947b71eb455
   subpackages:
   - proto
+- name: github.com/google/uuid
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/gorilla/websocket
-  version: 3ab3a8b8831546bd18fd182c20687ca853b2bb13
+  version: ea4d1f681babbce9545c9c5f3d5194a789c89f5b
 - name: github.com/hink/go-blink1
   version: 00024678d9d548aac623267711505aa37491689e
   subpackages:
   - libusb
+- name: github.com/ttacon/chalk
+  version: 76b3c8b611dea8f83e49e9ce81fc2b189e0ef3d2
 testImports: []

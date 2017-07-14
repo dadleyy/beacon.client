@@ -7,11 +7,12 @@ import "net/url"
 import "net/http"
 import "encoding/json"
 import "github.com/gorilla/websocket"
+
 import "github.com/dadleyy/beacon.client/beacon/defs"
 
 // WebsocketConfig holds the necessary information to subscribe to the api via websocket
 type WebsocketConfig struct {
-	APIHome *url.URL
+	APIHome url.URL
 	Secret  string
 }
 
@@ -62,13 +63,19 @@ func (subscriber *WebsocketSubscriber) Ping(data []byte) error {
 
 	defer writer.Close()
 
-	_, e = writer.Write(data)
+	amt, e := writer.Write(data)
 
 	if e != nil {
 		subscriber.connected = 0
+		return e
 	}
 
-	return e
+	if amt == 0 {
+		subscriber.connected = 0
+		return fmt.Errorf("unable to write into buffer")
+	}
+
+	return nil
 }
 
 // ReadInto opens a new reader from the websocket and copies the data into the writer
@@ -127,7 +134,7 @@ func (subscriber *WebsocketSubscriber) Connect() (e error) {
 }
 
 func (subscriber *WebsocketSubscriber) websocketAddress() string {
-	u, e := url.Parse(subscriber.Config.APIHome.String())
+	u, e := url.Parse(subscriber.registrationAddress())
 
 	if e != nil {
 		return ""
@@ -138,5 +145,12 @@ func (subscriber *WebsocketSubscriber) websocketAddress() string {
 }
 
 func (subscriber *WebsocketSubscriber) registrationAddress() string {
-	return subscriber.Config.APIHome.String()
+	u, e := url.Parse(subscriber.Config.APIHome.String())
+
+	if e != nil {
+		return ""
+	}
+
+	u.Path = defs.APIRegistrationEndpoint
+	return u.String()
 }

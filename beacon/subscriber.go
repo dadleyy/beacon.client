@@ -8,6 +8,8 @@ type Subscriber interface {
 	ReadInto(io.Writer) error
 	Connect() error
 	Close() error
+	Preregister(string) error
+	Ping([]byte) error
 }
 
 // Pingable defines an interface that defines a Ping method

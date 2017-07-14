@@ -36,7 +36,7 @@ $(LINT_RESULT): $(GO_SRC)
 	$(LINT) $(LINT_FLAGS) $(shell go list $(SRC_DIR)/... | grep -v 'interchange')
 	touch $(LINT_RESULT)
 
-test: $(GO_SRC) $(COVERAGE_REPORT)
+test: $(GO_SRC) $(LINT_RESULT) $(COVERAGE_REPORT)
 	$(GO) vet $(shell go list ./... | grep -vi 'vendor\|testing')
 
 $(COVERAGE_REPORT):
