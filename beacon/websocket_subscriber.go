@@ -140,7 +140,18 @@ func (subscriber *WebsocketSubscriber) websocketAddress() string {
 		return ""
 	}
 
-	u.Scheme = "ws"
+	schemeMapping := map[string]string{
+		"http":  "ws",
+		"https": "wss",
+	}
+
+	newScheme, ok := schemeMapping[u.Scheme]
+
+	if ok != true {
+		newScheme = "ws"
+	}
+
+	u.Scheme = newScheme
 	return u.String()
 }
 

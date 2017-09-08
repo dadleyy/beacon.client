@@ -24,7 +24,7 @@ func main() {
 		retryDelay     int
 	}{}
 
-	flag.StringVar(&options.apiHome, "api", "http://0.0.0.0:12345", "the hostname of the beacon.api server")
+	flag.StringVar(&options.apiHome, "api", "http://0.0.0.0:8080", "the hostname of the beacon.api server")
 	flag.BoolVar(&options.debugging, "debug", false, "if true, the client will not attempt to open the blink device")
 	flag.IntVar(&options.commandBuffer, "command-buffer", 2, "amount of allowed commands to buffer")
 	flag.IntVar(&options.heartbeatDelay, "heartbeat-delay", 10, "amount of seconds between heartbeat pings")
