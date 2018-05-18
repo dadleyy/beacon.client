@@ -1,8 +1,8 @@
-hash: f5771dad8425d824d9b23ee5883a357f3d4e6d00cdb9a70126255ad31f484cc3
-updated: 2017-07-12T13:47:32.190485045-04:00
+hash: baf6e5be3e931e290b2479d619b5ca2b6e0090c59e4fc15cac888f76f353b599
+updated: 2018-05-18T10:19:42.46149863-04:00
 imports:
 - name: github.com/golang/protobuf
-  version: 98fa357170587e470c5f27d3c3ea0947b71eb455
+  version: b4deda0973fb4c70b50d226b1af49f3da59f5265
   subpackages:
   - proto
 - name: github.com/google/uuid
