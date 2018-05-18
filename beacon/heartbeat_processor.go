@@ -26,7 +26,7 @@ func (processor *HeartbeatProcessor) Start(wg *sync.WaitGroup) {
 	ticker, retries := time.NewTicker(processor.delay), 0
 	processor.Infof("heartbeat processor starting")
 
-	for _ = range ticker.C {
+	for range ticker.C {
 		e := processor.pinger.Ping([]byte("ping"))
 
 		if e != nil && retries < 100 {
